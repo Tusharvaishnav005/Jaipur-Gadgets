@@ -153,17 +153,6 @@ cd frontend && npm run dev
 - Frontend: http://localhost:5173
 - Backend API: http://localhost:5000/api
 
-## 👤 Default Admin Account
-
-Create an admin user by:
-1. Register a new account
-2. Update the user in MongoDB:
-```javascript
-db.users.updateOne(
-  { email: "admin@example.com" },
-  { $set: { role: "admin" } }
-)
-```
 
 ## 🔐 API Endpoints
 
@@ -232,4 +221,5 @@ For support, email info@jaipurgadget.com or create an issue.
 ---
 
 Built with ❤️ using MERN Stack
+
 
