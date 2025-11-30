@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useCart } from '../contexts/CartContext'
 import { useWishlist } from '../contexts/WishlistContext'
 import toast from 'react-hot-toast'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import ProductDetailModal from './ProductDetailModal'
 import getImageUrl from '../utils/imageUrl'
 
@@ -14,6 +14,19 @@ const ProductCard = ({ product }) => {
   const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist()
   const [imageError, setImageError] = useState(false)
   const [showModal, setShowModal] = useState(false)
+  
+  // Debug: Log image URL in development
+  useEffect(() => {
+    if (product.images?.[0] && import.meta.env.DEV) {
+      const imageUrl = getImageUrl(product.images[0]);
+      console.log('ProductCard image URL:', {
+        productName: product.name,
+        imagePath: product.images[0],
+        fullUrl: imageUrl,
+        apiBaseUrl: import.meta.env.VITE_API_BASE_URL
+      });
+    }
+  }, [product])
   
   const isWishlisted = isInWishlist(product._id)
 
@@ -78,7 +91,15 @@ const ProductCard = ({ product }) => {
               src={getImageUrl(product.images[0])}
               alt={product.name}
               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-              onError={() => setImageError(true)}
+              onError={(e) => {
+                console.error('Image load error:', {
+                  productName: product.name,
+                  imagePath: product.images[0],
+                  attemptedUrl: e.target.src,
+                  apiBaseUrl: import.meta.env.VITE_API_BASE_URL
+                });
+                setImageError(true);
+              }}
             />
           ) : (
             <div 

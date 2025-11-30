@@ -6,29 +6,13 @@ import Category from '../models/Category.js';
 import Review from '../models/Review.js';
 import Enquiry from '../models/Enquiry.js';
 import { protect, admin } from '../middleware/auth.js';
-import multer from 'multer';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { upload, deleteImage } from '../utils/cloudinary.js';
 
 const router = express.Router();
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // All routes require admin authentication
 router.use(protect);
 router.use(admin);
-
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, '../uploads/products'));
-  },
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  }
-});
-
-const upload = multer({ storage });
 
 // ========== ANALYTICS ==========
 // @route   GET /api/admin/analytics
@@ -176,7 +160,8 @@ router.post('/products', upload.array('images', 5), async (req, res, next) => {
   try {
     const { name, description, price, originalPrice, category, brand, stock, specifications, status, featured } = req.body;
 
-    const images = req.files ? req.files.map(file => `/uploads/products/${file.filename}`) : [];
+    // Get Cloudinary URLs from uploaded files
+    const images = req.files ? req.files.map(file => file.path) : [];
 
     const product = await Product.create({
       name,
@@ -228,7 +213,8 @@ router.put('/products/:id', upload.array('images', 5), async (req, res, next) =>
     if (featured !== undefined) product.featured = featured === 'true';
 
     if (req.files && req.files.length > 0) {
-      const newImages = req.files.map(file => `/uploads/products/${file.filename}`);
+      // Get Cloudinary URLs from uploaded files
+      const newImages = req.files.map(file => file.path);
       product.images = [...product.images, ...newImages];
     }
 
@@ -248,6 +234,33 @@ router.put('/products/:id', upload.array('images', 5), async (req, res, next) =>
 // @access  Private/Admin
 router.delete('/products/:id', async (req, res, next) => {
   try {
+    const product = await Product.findById(req.params.id);
+    
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+
+    // Delete images from Cloudinary
+    if (product.images && product.images.length > 0) {
+      try {
+        await Promise.all(
+          product.images.map(imageUrl => {
+            // Only delete if it's a Cloudinary URL (starts with http/https)
+            if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+              return deleteImage(imageUrl);
+            }
+            return Promise.resolve();
+          })
+        );
+      } catch (error) {
+        console.error('Error deleting images from Cloudinary:', error);
+        // Continue with product deletion even if image deletion fails
+      }
+    }
+
     await Product.findByIdAndDelete(req.params.id);
     res.json({
       success: true,
